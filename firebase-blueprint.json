@@ -1,0 +1,177 @@
+{
+"entities": {
+"UserProfile": {
+"title": "UserProfile",
+"description": "User profile details and metadata",
+"type": "object",
+"properties": {
+"uid": { "type": "string" },
+"email": { "type": "string" },
+"displayName": { "type": "string", "maxLength": 100 },
+"photoURL": { "type": "string", "maxLength": 500 },
+"createdAt": { "type": "string" },
+"updatedAt": { "type": "string" }
+},
+"required": ["uid", "email"]
+},
+"Page": {
+"title": "Page",
+"description": "Website page content, blocks, and SEO metadata",
+"type": "object",
+"properties": {
+"id": { "type": "string" },
+"title": { "type": "string", "maxLength": 200 },
+"slug": { "type": "string", "maxLength": 100 },
+"content": { "type": "string" },
+"status": { "type": "string", "enum": ["draft", "published", "archived"] },
+"updatedAt": { "type": "string" }
+},
+"required": ["id", "title"]
+},
+"MediaFile": {
+"title": "MediaFile",
+"description": "Uploaded media metadata and URLs",
+"type": "object",
+"properties": {
+"id": { "type": "string" },
+"name": { "type": "string", "maxLength": 200 },
+"url": { "type": "string", "maxLength": 1000 },
+"size": { "type": "number" },
+"type": { "type": "string", "maxLength": 100 },
+"createdAt": { "type": "string" }
+},
+"required": ["id", "name", "url"]
+},
+"CustomRole": {
+"title": "CustomRole",
+"description": "Role-based access control definition",
+"type": "object",
+"properties": {
+"id": { "type": "string" },
+"name": { "type": "string", "maxLength": 100 },
+"description": { "type": "string", "maxLength": 500 },
+"permissions": { "type": "object" },
+"isSystem": { "type": "boolean" },
+"createdAt": { "type": "string" }
+},
+"required": ["id", "name"]
+},
+"TeamMember": {
+"title": "TeamMember",
+"description": "Collaborator or team member in a workspace",
+"type": "object",
+"properties": {
+"id": { "type": "string" },
+"email": { "type": "string" },
+"name": { "type": "string", "maxLength": 100 },
+"role": { "type": "string", "maxLength": 50 },
+"status": { "type": "string", "enum": ["active", "invited", "suspended"] },
+"invitedAt": { "type": "string" }
+},
+"required": ["id", "email", "role"]
+},
+"CmsCollection": {
+"title": "CmsCollection",
+"description": "Structured content schema collection",
+"type": "object",
+"properties": {
+"id": { "type": "string" },
+"name": { "type": "string", "maxLength": 100 },
+"slug": { "type": "string", "maxLength": 100 },
+"fields": { "type": "array" }
+},
+"required": ["id", "name", "slug"]
+},
+"CmsItem": {
+"title": "CmsItem",
+"description": "Record entry belonging to a CMS collection",
+"type": "object",
+"properties": {
+"id": { "type": "string" },
+"collectionId": { "type": "string" },
+"data": { "type": "object" },
+"status": { "type": "string", "enum": ["draft", "published", "archived"] }
+},
+"required": ["id", "collectionId"]
+},
+"Workspace": {
+"title": "Workspace",
+"description": "Isolated workspace container for multi-brand management",
+"type": "object",
+"properties": {
+"id": { "type": "string" },
+"name": { "type": "string", "maxLength": 100 },
+"slug": { "type": "string", "maxLength": 100 },
+"description": { "type": "string", "maxLength": 500 },
+"createdAt": { "type": "string" },
+"ownerEmail": { "type": "string" },
+"isDefault": { "type": "boolean" }
+},
+"required": ["id", "name"]
+},
+"FormSubmission": {
+"title": "FormSubmission",
+"description": "Captured public form submission or inbound lead",
+"type": "object",
+"properties": {
+"id": { "type": "string" },
+"formId": { "type": "string", "maxLength": 100 },
+"formName": { "type": "string", "maxLength": 150 },
+"data": { "type": "object" },
+"submittedAt": { "type": "string" },
+"status": { "type": "string", "enum": ["unread", "read", "archived", "spam"] }
+},
+"required": ["data"]
+}
+},
+"firestore": {
+"/users/{userId}/profile/{docId}": {
+"schema": "UserProfile",
+"description": "Private profile information for a user"
+},
+"/users/{userId}/pages/{pageId}": {
+"schema": "Page",
+"description": "Website pages authored by the user"
+},
+"/users/{userId}/media/{mediaId}": {
+"schema": "MediaFile",
+"description": "Media library assets belonging to the user"
+},
+"/users/{userId}/custom_roles/{roleId}": {
+"schema": "CustomRole",
+"description": "Custom RBAC roles created by the user"
+},
+"/users/{userId}/team_members/{memberId}": {
+"schema": "TeamMember",
+"description": "Team members managed by the user"
+},
+"/users/{userId}/cms_collections/{collectionId}": {
+"schema": "CmsCollection",
+"description": "CMS schema collections"
+},
+"/users/{userId}/cms_items/{itemId}": {
+"schema": "CmsItem",
+"description": "CMS item entries"
+},
+"/users/{userId}/workspaces/{workspaceId}": {
+"schema": "Workspace",
+"description": "Isolated workspace container"
+},
+"/users/{userId}/workspaces/{workspaceId}/pages/{pageId}": {
+"schema": "Page",
+"description": "Pages authored within an isolated workspace"
+},
+"/users/{userId}/workspaces/{workspaceId}/cms_collections/{collectionId}": {
+"schema": "CmsCollection",
+"description": "CMS collections within an isolated workspace"
+},
+"/users/{userId}/workspaces/{workspaceId}/cms_items/{itemId}": {
+"schema": "CmsItem",
+"description": "CMS item records within an isolated workspace"
+},
+"/submissions/{submissionId}": {
+"schema": "FormSubmission",
+"description": "Public form submissions and leads"
+}
+}
+}

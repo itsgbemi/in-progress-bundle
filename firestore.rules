@@ -1,0 +1,220 @@
+rules_version = '2';
+service cloud.firestore {
+match /databases/{database}/documents {
+
+// =========================================================================
+// GLOBAL DEFAULT DENY CATCH-ALL
+// =========================================================================
+match /{document=**} {
+allow read, write: if false;
+}
+
+// =========================================================================
+// SECURITY HELPER PRIMITIVES
+// =========================================================================
+function isSignedIn() {
+return request.auth != null;
+}
+
+function isVerified() {
+return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'password');
+}
+
+function isIPOwner() {
+return isSignedIn() && request.auth.token.email == 'oliveajike@gmail.com';
+}
+
+function isAdmin() {
+return isIPOwner() || (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+}
+
+function isOwner(userId) {
+return isSignedIn() && (request.auth.uid == userId || isIPOwner());
+}
+
+function isValidId(id) {
+return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.:@]+$');
+}
+
+// =========================================================================
+// ADMINS WHITELIST COLLECTION
+// =========================================================================
+match /admins/{adminId} {
+allow get: if isSignedIn();
+allow list: if isAdmin();
+allow write: if isIPOwner();
+}
+
+// =========================================================================
+// USERS ROOT DOCUMENT & SUBCOLLECTIONS
+// =========================================================================
+match /users/{userId} {
+allow get: if isOwner(userId) || isAdmin();
+allow list: if isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+
+// User Profile (PII Isolation)
+match /profile/{docId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// Pages & Content Blocks
+match /pages/{pageId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// Media Library Files
+match /media/{mediaId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// User Configurations (Website, Brand, Preferences, Audit Logs)
+match /config/{configDoc} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// Scratchpad Notes
+match /notes/{noteId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// Team Members & Collaborators
+match /team_members/{memberId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// Custom Roles & Permissions
+match /custom_roles/{roleId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// CMS Collections Schemas
+match /cms_collections/{collectionId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// CMS Item Records
+match /cms_items/{itemId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// Page Feedback & Comments
+match /comments/{pageId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// Page Version Revisions
+match /revisions/{pageId} {
+allow read: if isOwner(userId) || isAdmin();
+allow write: if isOwner(userId) || isAdmin();
+}
+
+// Ingested Leads (User/Guest Scope)
+match /leads/{leadId} {
+allow read: if isOwner(userId) || isAdmin();
+allow create: if true;
+allow update, delete: if isOwner(userId) || isAdmin();
+}
+
+// =======================================================================
+// WORKSPACES (Isolated workspaces for multiple brands)
+// =======================================================================
+match /workspaces/{workspaceId} {
+allow read, write: if isOwner(userId) || isAdmin();
+
+// Workspace Pages
+match /pages/{pageId} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+// Workspace Configuration (Website Config, Brand Info, etc.)
+match /config/{configDoc} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+// Workspace CMS Collections & Items
+match /cms_collections/{collectionId} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+match /cms_items/{itemId} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+// Workspace Media Files
+match /media/{mediaId} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+// Workspace Scratchpad Notes
+match /notes/{noteId} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+// Workspace Team Members & Collaborators
+match /team_members/{memberId} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+// Workspace Custom Roles
+match /custom_roles/{roleId} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+// Workspace Comments & Revisions
+match /comments/{pageId} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+match /revisions/{pageId} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+
+// Workspace Ingested Leads
+match /leads/{leadId} {
+allow read: if isOwner(userId) || isAdmin();
+allow create: if true;
+allow update, delete: if isOwner(userId) || isAdmin();
+}
+
+// Catch-all for any nested subcollections within a workspace
+match /{allSubdocs=**} {
+allow read, write: if isOwner(userId) || isAdmin();
+}
+}
+}
+
+// =========================================================================
+// PUBLIC FORM SUBMISSIONS & INBOUND LEADS (ROOT COLLECTIONS)
+// =========================================================================
+match /submissions/{submissionId} {
+// Public forms can submit new entries
+allow create: if true;
+// Authenticated owners & admins can read and manage submissions
+allow get, list: if isSignedIn();
+allow update, delete: if isSignedIn() && (isAdmin() || (resource.data.userId != null && resource.data.userId == request.auth.uid));
+}
+
+match /leads/{leadId} {
+allow create: if true;
+allow get, list: if isSignedIn();
+allow update, delete: if isSignedIn() && (isAdmin() || (resource.data.userId != null && resource.data.userId == request.auth.uid));
+}
+
+match /contactSubmissions/{submissionId} {
+allow create: if true;
+allow get, list: if isSignedIn();
+allow update, delete: if isSignedIn() && (isAdmin() || (resource.data.userId != null && resource.data.userId == request.auth.uid));
+}
+}
+}

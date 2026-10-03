@@ -1,0 +1,22 @@
+{
+  "workspaces": [
+    {
+      "id": "workspace-default",
+      "name": "Untitled Workspace",
+      "slug": "untitled-workspace",
+      "description": "Default workspace managed by oliveajike@gmail.com",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "isDefault": true,
+      "ownerEmail": "oliveajike@gmail.com",
+      "secretInheritance": {
+        "inheritGithubAndEmail": false,
+        "gmailUser": false,
+        "gmailPassword": false,
+        "githubBranch": false,
+        "githubOwner": false,
+        "githubToken": false
+      },
+      "secrets": {}
+    }
+  ]
+}
