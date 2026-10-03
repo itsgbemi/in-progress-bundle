@@ -4,6 +4,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -1670,6 +1671,8 @@ function collectBundleFiles(options: {
         if (options.excludeBundlesPage) {
           if (
             relPath.includes('BundlesView.tsx') ||
+            relPath.includes('BundlesSubNavBox.tsx') ||
+            relPath.includes('views/bundles') ||
             relPath.includes('BundleGuideModal.tsx') ||
             relPath.includes('bundleService.ts')
           ) {
@@ -1681,6 +1684,7 @@ function collectBundleFiles(options: {
         if (options.excludeUsagePage) {
           if (
             relPath.includes('UsageView.tsx') ||
+            relPath.includes('views/usage') ||
             relPath.includes('ReportSubNavBox.tsx') ||
             relPath.includes('firebaseUsageService.ts')
           ) {
@@ -1704,7 +1708,11 @@ function collectBundleFiles(options: {
         }
 
         if (options.excludeBrandPage) {
-          if (relPath.includes('BrandView.tsx') || relPath.includes('BrandSubNavBox.tsx')) {
+          if (
+            relPath.includes('BrandView.tsx') ||
+            relPath.includes('views/brand') ||
+            relPath.includes('BrandSubNavBox.tsx')
+          ) {
             shouldOmit = true;
             omitReason = 'Omitted: Exclude Brand selected';
           }
@@ -1897,6 +1905,10 @@ function collectBundleFiles(options: {
   return { files: filesMap, manifest: manifestItems };
 }
 
+function calculateGitBlobSha(content: string): string {
+  return crypto.createHash('sha1').update('blob ' + Buffer.byteLength(content, 'utf-8') + '\0' + content).digest('hex');
+}
+
 app.post('/api/github/bundle-manifest', (req, res) => {
   try {
     const { manifest } = collectBundleFiles(req.body || {});
@@ -1928,6 +1940,185 @@ app.post('/api/github/bundle-files', (req, res) => {
   }
 });
 
+app.post('/api/github/bundle-diff', async (req, res) => {
+  try {
+    const workspaceId = req.body.workspaceId;
+    const token = (req.body.githubToken || resolveWorkspaceEnv('GITHUB_TOKEN', workspaceId))?.trim();
+    if (!token) {
+      return res.status(400).json({
+        error: 'GitHub token not found. Please configure GITHUB_TOKEN in Settings -> Secrets.',
+      });
+    }
+
+    let owner = (req.body.repoOwner || resolveWorkspaceEnv('GITHUB_REPO_OWNER', workspaceId) || '').trim();
+    let repo = (req.body.repoName || resolveWorkspaceEnv('GITHUB_REPO_NAME', workspaceId) || '').trim();
+    let branch = (req.body.branch || 'main').trim();
+
+    if (!owner) {
+      try {
+        const userRes = await fetch('https://api.github.com/user', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'Remix-Website-Builder',
+          },
+        });
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          owner = userData.login;
+        }
+      } catch (_) {}
+    }
+
+    if (!owner || !repo) {
+      return res.status(400).json({ error: 'Please specify both repository owner and repository name.' });
+    }
+
+    const { files: bundledFiles } = collectBundleFiles(req.body.options || {});
+    const fileEntries = Object.entries(bundledFiles);
+
+    let baseTreeSha: string | undefined;
+    let baseCommitSha: string | undefined;
+    const remoteTreeMap = new Map<string, { path: string; sha: string; size?: number }>();
+
+    const refRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branch}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'Remix-Website-Builder',
+      },
+    });
+
+    if (refRes.ok) {
+      const refData = await refRes.json();
+      baseCommitSha = refData.object?.sha;
+      if (baseCommitSha) {
+        const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits/${baseCommitSha}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'Remix-Website-Builder',
+          },
+        });
+        if (commitRes.ok) {
+          const commitData = await commitRes.json();
+          baseTreeSha = commitData.tree?.sha;
+          if (baseTreeSha) {
+            const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${baseTreeSha}?recursive=1`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'Remix-Website-Builder',
+              },
+            });
+            if (treeRes.ok) {
+              const treeData = await treeRes.json();
+              if (Array.isArray(treeData.tree)) {
+                for (const item of treeData.tree) {
+                  if (item.type === 'blob') {
+                    remoteTreeMap.set(item.path, item);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const diffItems: Array<{
+      path: string;
+      size: number;
+      status: 'added' | 'modified' | 'deleted' | 'unchanged';
+      localSha?: string;
+      remoteSha?: string;
+      category: 'core' | 'views' | 'components' | 'styles' | 'config' | 'public';
+      omitted?: boolean;
+    }> = [];
+
+    const localPathsSet = new Set<string>();
+
+    for (const [filePath, content] of fileEntries) {
+      localPathsSet.add(filePath);
+      const localSha = calculateGitBlobSha(content);
+      const remote = remoteTreeMap.get(filePath);
+
+      let category: 'core' | 'views' | 'components' | 'styles' | 'config' | 'public' = 'core';
+      if (filePath.includes('views/')) category = 'views';
+      else if (filePath.includes('components/')) category = 'components';
+      else if (filePath.endsWith('.css') || filePath.endsWith('.scss')) category = 'styles';
+      else if (filePath.endsWith('.json') || filePath.endsWith('.toml') || filePath.endsWith('.config.ts')) category = 'config';
+
+      if (!remote) {
+        diffItems.push({
+          path: filePath,
+          size: Buffer.byteLength(content, 'utf-8'),
+          status: 'added',
+          localSha,
+          category,
+        });
+      } else if (remote.sha !== localSha) {
+        diffItems.push({
+          path: filePath,
+          size: Buffer.byteLength(content, 'utf-8'),
+          status: 'modified',
+          localSha,
+          remoteSha: remote.sha,
+          category,
+        });
+      } else {
+        diffItems.push({
+          path: filePath,
+          size: Buffer.byteLength(content, 'utf-8'),
+          status: 'unchanged',
+          localSha,
+          remoteSha: remote.sha,
+          category,
+        });
+      }
+    }
+
+    for (const [remotePath, remoteItem] of remoteTreeMap.entries()) {
+      if (!localPathsSet.has(remotePath)) {
+        diffItems.push({
+          path: remotePath,
+          size: remoteItem.size || 0,
+          status: 'deleted',
+          remoteSha: remoteItem.sha,
+          category: 'core',
+          omitted: true,
+        });
+      }
+    }
+
+    const modifiedCount = diffItems.filter((d) => d.status === 'modified').length;
+    const addedCount = diffItems.filter((d) => d.status === 'added').length;
+    const deletedCount = diffItems.filter((d) => d.status === 'deleted').length;
+    const unchangedCount = diffItems.filter((d) => d.status === 'unchanged').length;
+    const isUpToDate = modifiedCount === 0 && addedCount === 0 && deletedCount === 0 && Boolean(baseCommitSha);
+
+    return res.json({
+      totalFiles: diffItems.length,
+      modifiedCount,
+      addedCount,
+      deletedCount,
+      unchangedCount,
+      isUpToDate,
+      files: diffItems,
+      baseCommitSha,
+      branch,
+      repoFullName: `${owner}/${repo}`,
+    });
+  } catch (err: any) {
+    console.error('Error calculating bundle diff:', err);
+    return res.status(500).json({ error: err.message || 'Failed to calculate diff' });
+  }
+});
+
 app.post('/api/github/push-bundle', async (req, res) => {
   try {
     const workspaceId = req.body.workspaceId;
@@ -1941,6 +2132,8 @@ app.post('/api/github/push-bundle', async (req, res) => {
     let owner = (req.body.repoOwner || resolveWorkspaceEnv('GITHUB_REPO_OWNER', workspaceId) || '').trim();
     let repo = (req.body.repoName || resolveWorkspaceEnv('GITHUB_REPO_NAME', workspaceId) || '').trim();
     let branch = (req.body.branch || 'main').trim();
+    const visibility = req.body.visibility || 'private';
+    const isPrivate = visibility !== 'public';
     const commitMessage = (req.body.commitMessage || 'Deploy customized app bundle via Bundles').trim();
 
     if (!owner) {
@@ -1995,7 +2188,7 @@ app.post('/api/github/push-bundle', async (req, res) => {
           name: repo,
           description: req.body.customDescription || 'Customized application bundle created with Website Builder',
           auto_init: true,
-          private: false,
+          private: isPrivate,
         }),
       });
 
@@ -2013,9 +2206,10 @@ app.post('/api/github/push-bundle', async (req, res) => {
       });
     }
 
-    // 2. Check current branch commit
+    // 2. Fetch current branch commit and remote tree for Smart Delta Push
     let latestCommitSha: string | undefined;
     let baseTreeSha: string | undefined;
+    const remoteTreeMap = new Map<string, { path: string; sha: string; size?: number }>();
 
     const refRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branch}`, {
       headers: {
@@ -2041,19 +2235,100 @@ app.post('/api/github/push-bundle', async (req, res) => {
         if (commitRes.ok) {
           const commitData = await commitRes.json();
           baseTreeSha = commitData.tree?.sha;
+          if (baseTreeSha) {
+            const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${baseTreeSha}?recursive=1`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'Remix-Website-Builder',
+              },
+            });
+            if (treeRes.ok) {
+              const treeData = await treeRes.json();
+              if (Array.isArray(treeData.tree)) {
+                for (const item of treeData.tree) {
+                  if (item.type === 'blob') {
+                    remoteTreeMap.set(item.path, item);
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
 
-    // 3. Post Tree
-    const treeItems = fileEntries.map(([filePath, content]) => ({
-      path: filePath,
-      mode: '100644',
-      type: 'blob',
-      content,
-    }));
+    // 3. Compute Delta Tree Items (Only modified, added, or deleted files)
+    const localPathsSet = new Set<string>();
+    const deltaTreeItems: any[] = [];
+    let modifiedCount = 0;
+    let addedCount = 0;
+    let deletedCount = 0;
+    let unchangedCount = 0;
 
-    const createTreePayload: any = { tree: treeItems };
+    for (const [filePath, content] of fileEntries) {
+      localPathsSet.add(filePath);
+      const localSha = calculateGitBlobSha(content);
+      const remote = remoteTreeMap.get(filePath);
+
+      if (!baseTreeSha || !remote) {
+        deltaTreeItems.push({
+          path: filePath,
+          mode: '100644',
+          type: 'blob',
+          content,
+        });
+        addedCount++;
+      } else if (remote.sha !== localSha) {
+        deltaTreeItems.push({
+          path: filePath,
+          mode: '100644',
+          type: 'blob',
+          content,
+        });
+        modifiedCount++;
+      } else {
+        unchangedCount++;
+      }
+    }
+
+    if (baseTreeSha) {
+      for (const [remotePath] of remoteTreeMap.entries()) {
+        if (!localPathsSet.has(remotePath)) {
+          deltaTreeItems.push({
+            path: remotePath,
+            mode: '100644',
+            type: 'blob',
+            sha: null,
+          });
+          deletedCount++;
+        }
+      }
+    }
+
+    // If baseTreeSha exists and 0 files changed, skip redundant commit to avoid rate limits
+    if (baseTreeSha && latestCommitSha && deltaTreeItems.length === 0) {
+      return res.json({
+        success: true,
+        unchanged: true,
+        repoFullName: `${owner}/${repo}`,
+        branch,
+        commitSha: latestCommitSha,
+        commitUrl: `https://github.com/${owner}/${repo}/commit/${latestCommitSha}`,
+        filesCount: fileEntries.length,
+        omittedFilesCount: manifest.filter((m) => m.omitted).length,
+        modifiedCount: 0,
+        addedCount: 0,
+        deletedCount: 0,
+        unchangedCount: fileEntries.length,
+        timestamp: new Date().toISOString(),
+        message: 'Repository is already up to date with this bundle. 0 files changed.',
+      });
+    }
+
+    // 4. Post Delta Tree
+    const createTreePayload: any = { tree: deltaTreeItems };
     if (baseTreeSha) {
       createTreePayload.base_tree = baseTreeSha;
     }
@@ -2079,9 +2354,10 @@ app.post('/api/github/push-bundle', async (req, res) => {
 
     const treeData = await treeRes.json();
 
-    // 4. Create Commit
+    // 5. Create Commit
+    const finalCommitMessage = `${commitMessage} [${modifiedCount} mod, ${addedCount} add, ${deletedCount} del, ${unchangedCount} unch]`;
     const commitPayload: any = {
-      message: commitMessage,
+      message: finalCommitMessage,
       tree: treeData.sha,
       parents: latestCommitSha ? [latestCommitSha] : [],
     };
@@ -2107,7 +2383,7 @@ app.post('/api/github/push-bundle', async (req, res) => {
 
     const newCommitData = await newCommitRes.json();
 
-    // 5. Update or Create Branch Ref
+    // 6. Update or Create Branch Ref
     if (latestCommitSha) {
       const updateRefRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
         method: 'PATCH',
@@ -2161,6 +2437,10 @@ app.post('/api/github/push-bundle', async (req, res) => {
       commitUrl: `https://github.com/${owner}/${repo}/commit/${newCommitData.sha}`,
       filesCount: fileEntries.length,
       omittedFilesCount: omittedCount,
+      modifiedCount,
+      addedCount,
+      deletedCount,
+      unchangedCount,
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {

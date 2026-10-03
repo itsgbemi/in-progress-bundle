@@ -42,7 +42,7 @@ const ROBOT_GUIDE_CONTENT = [
   }
 ];
 
-interface IndexingSubViewProps {
+interface IndexingProps {
   pages: WebsitePage[];
   config: WebsiteConfig;
   onUpdateConfig: (config: WebsiteConfig) => void;
@@ -50,7 +50,7 @@ interface IndexingSubViewProps {
   onNavigateSubTab?: (subTab: 'webpages' | 'sitemap' | 'indexing' | 'domain' | 'hosting') => void;
 }
 
-export const IndexingSubView: React.FC<IndexingSubViewProps> = ({
+export const Indexing: React.FC<IndexingProps> = ({
   pages,
   config,
   onUpdateConfig,

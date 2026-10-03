@@ -43,7 +43,7 @@ const MENU_ITEMS_METADATA: Record<string, { label: string; desc: string; icon: R
   'usage': { label: 'Usage', desc: 'Resource quotas, bandwidth and API activity', icon: TrendingUp },
 };
 
-interface BrandingSettingsSubViewProps {
+interface BrandingSettingsProps {
   uiTheme: 'dark' | 'light';
 }
 
@@ -221,7 +221,7 @@ const WelcomeScreenLayoutMockup: React.FC<WelcomeScreenLayoutMockupProps> = ({
   );
 };
 
-export const BrandingSettingsSubView: React.FC<BrandingSettingsSubViewProps> = ({ uiTheme }) => {
+export const BrandingSettings: React.FC<BrandingSettingsProps> = ({ uiTheme }) => {
   const isLight = uiTheme === 'light';
   const { user } = useAuth();
 

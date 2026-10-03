@@ -18,11 +18,11 @@ import {
   Sliders
 } from 'lucide-react';
 
-interface ProfileSettingsSubViewProps {
+interface ProfileSettingsProps {
   uiTheme: 'dark' | 'light';
 }
 
-export const ProfileSettingsSubView: React.FC<ProfileSettingsSubViewProps> = ({ uiTheme }) => {
+export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ uiTheme }) => {
   const { user, updateUserDisplayName, resetPassword, logout } = useAuth();
   const isLight = uiTheme === 'light';
 

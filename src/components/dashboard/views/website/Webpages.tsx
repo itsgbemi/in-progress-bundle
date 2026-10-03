@@ -54,7 +54,7 @@ import {
   Filter
 } from 'lucide-react';
 
-interface WebpagesSubViewProps {
+interface WebpagesProps {
   pages: WebsitePage[];
   onOpenPageInEditor: (pageId: string) => void;
   onCreateNewPage: (
@@ -75,7 +75,7 @@ interface WebpagesSubViewProps {
   uiTheme: 'dark' | 'light';
 }
 
-export const WebpagesSubView: React.FC<WebpagesSubViewProps> = ({
+export const Webpages: React.FC<WebpagesProps> = ({
   pages,
   onOpenPageInEditor,
   onCreateNewPage,

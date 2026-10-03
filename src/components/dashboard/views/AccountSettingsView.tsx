@@ -1,8 +1,8 @@
 import React from 'react';
 import { SettingsSubTab } from '../SettingsSubNavBox';
-import { ProfileSettingsSubView } from './settings/ProfileSettingsSubView';
-import { PreferencesSettingsSubView } from './settings/PreferencesSettingsSubView';
-import { BrandingSettingsSubView } from './settings/BrandingSettingsSubView';
+import { ProfileSettings } from './settings/ProfileSettings';
+import { PreferencesSettings } from './settings/PreferencesSettings';
+import { BrandingSettings } from './settings/BrandingSettings';
 
 interface AccountSettingsViewProps {
   currentSubTab?: SettingsSubTab;
@@ -20,16 +20,16 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({
 }) => {
   return (
     <div className="w-full">
-      {currentSubTab === 'account' && <ProfileSettingsSubView uiTheme={uiTheme} />}
+      {currentSubTab === 'account' && <ProfileSettings uiTheme={uiTheme} />}
       {currentSubTab === 'preferences' && (
-        <PreferencesSettingsSubView
+        <PreferencesSettings
           uiTheme={uiTheme}
           onToggleUiTheme={onToggleUiTheme}
           onSetUiTheme={onSetUiTheme}
         />
       )}
       {(currentSubTab === 'workspace' || (currentSubTab as string) === 'branding') && (
-        <BrandingSettingsSubView uiTheme={uiTheme} />
+        <BrandingSettings uiTheme={uiTheme} />
       )}
     </div>
   );

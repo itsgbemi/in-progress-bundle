@@ -15,6 +15,7 @@ import { WebsiteSubNavBox, WebsiteSubTab } from './WebsiteSubNavBox';
 import { SettingsSubNavBox, SettingsSubTab } from './SettingsSubNavBox';
 import { BrandSubNavBox, BrandSubTab } from './BrandSubNavBox';
 import { ReportSubNavBox, ReportSubTab } from './ReportSubNavBox';
+import { BundlesSubNavBox, BundlesSubTab } from './BundlesSubNavBox';
 import { subscribeToFormsSubmissions, FormSubmission } from '../../services/formsFirebaseService';
 import {
   WebsiteConfig,
@@ -91,6 +92,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('account');
   const [brandSubTab, setBrandSubTab] = useState<BrandSubTab>('identity');
   const [reportSubTab, setReportSubTab] = useState<ReportSubTab>('overview');
+  const [bundlesSubTab, setBundlesSubTab] = useState<BundlesSubTab>('versions');
   const [websiteConfig, setWebsiteConfig] = useState<WebsiteConfig>(() => loadWebsiteConfig());
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -261,12 +263,21 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               setReportSubTab('overview');
             }
           }
+          if (tab === 'bundles') {
+            if (subTab) {
+              setBundlesSubTab(subTab as BundlesSubTab);
+            } else if (!bundlesSubTab) {
+              setBundlesSubTab('versions');
+            }
+          }
         }}
+        onSelectBundlesSubTab={(sub) => setBundlesSubTab(sub)}
+        bundlesSubTab={bundlesSubTab}
         onOpenEditor={onOpenEditor}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         uiTheme={uiTheme}
-        isMinimized={currentTab === 'websites' || currentTab === 'settings' || currentTab === 'brand' || currentTab === 'usage'}
+        isMinimized={currentTab === 'websites' || currentTab === 'settings' || currentTab === 'brand' || currentTab === 'usage' || currentTab === 'bundles'}
         onToggleUiTheme={onToggleUiTheme}
         onCreateNewPage={handleDirectCreateNewPage}
       />
@@ -299,6 +310,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             currentSubTab={brandSubTab}
             onSelectSubTab={(sub) => setBrandSubTab(sub)}
             uiTheme={uiTheme}
+          />
+        </div>
+      )}
+
+                  uiTheme={uiTheme}
           />
         </div>
       )}

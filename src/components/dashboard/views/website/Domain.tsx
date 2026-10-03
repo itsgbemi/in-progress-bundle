@@ -25,13 +25,13 @@ import {
 import { EmptyState } from '../../../common/EmptyState';
 import { Input, DashboardViewHeader, AlertBanner } from '../../../common';
 
-interface DomainSubViewProps {
+interface DomainProps {
   config: WebsiteConfig;
   onUpdateConfig: (config: WebsiteConfig) => void;
   uiTheme: 'dark' | 'light';
 }
 
-export const DomainSubView: React.FC<DomainSubViewProps> = ({ config, onUpdateConfig, uiTheme }) => {
+export const Domain: React.FC<DomainProps> = ({ config, onUpdateConfig, uiTheme }) => {
   const isLight = uiTheme === 'light';
 
   const attachedDomains: AttachedDomain[] = config.domain.attachedDomains || [];

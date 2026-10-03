@@ -120,13 +120,13 @@ const getDescriptivePaletteName = (pal: { id: string; name: string }) => {
   return overrides[pal.id] || pal.name;
 };
 
-interface AppearanceSettingsSubViewProps {
+interface AppearanceSettingsProps {
   uiTheme: 'dark' | 'light';
   onToggleUiTheme: () => void;
   onSetUiTheme?: (theme: 'dark' | 'light') => void;
 }
 
-export const AppearanceSettingsSubView: React.FC<AppearanceSettingsSubViewProps> = ({
+export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   uiTheme,
   onToggleUiTheme,
   onSetUiTheme,

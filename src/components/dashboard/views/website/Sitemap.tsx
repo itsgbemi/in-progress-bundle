@@ -47,7 +47,7 @@ const GUIDE_CONTENT = [
   }
 ];
 
-interface SitemapSubViewProps {
+interface SitemapProps {
   pages: WebsitePage[];
   config: WebsiteConfig;
   onUpdateConfig: (config: WebsiteConfig) => void;
@@ -55,7 +55,7 @@ interface SitemapSubViewProps {
   onNavigateSubTab?: (subTab: WebsiteSubTab) => void;
 }
 
-export const SitemapSubView: React.FC<SitemapSubViewProps> = ({
+export const Sitemap: React.FC<SitemapProps> = ({
   pages,
   config,
   onUpdateConfig,

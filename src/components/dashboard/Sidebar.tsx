@@ -21,6 +21,7 @@ import {
   Mail,
   Share2,
   Settings,
+  Package,
 } from 'lucide-react';
 import { getSavedBrandingConfig, AppBrandingConfig, DEFAULT_MENU_ITEMS } from '../../utils/themePreferences';
 import { subscribeToFormsSubmissions } from '../../services/formsFirebaseService';
@@ -29,6 +30,7 @@ import { WebsiteSubTab } from './WebsiteSubNavBox';
 import { SettingsSubTab } from './SettingsSubNavBox';
 import { BrandSubTab } from './BrandSubNavBox';
 import { ReportSubTab } from './ReportSubNavBox';
+import { BundlesSubTab } from './BundlesSubNavBox';
 
 export type DashboardTab = 'get-started' | 'overview' | 'websites' | 'inbox' | 'brand' | 'media' | 'settings';
 
@@ -38,11 +40,13 @@ interface DashboardSidebarProps {
   websiteSubTab?: WebsiteSubTab;
   brandSubTab?: BrandSubTab;
   reportSubTab?: ReportSubTab;
+  bundlesSubTab?: BundlesSubTab;
   onSelectTab: (tab: DashboardTab, subTab?: string) => void;
   onSelectWebsiteSubTab?: (subTab: WebsiteSubTab) => void;
   onSelectSettingsSubTab?: (subTab: SettingsSubTab) => void;
   onSelectBrandSubTab?: (subTab: BrandSubTab) => void;
   onSelectReportSubTab?: (subTab: ReportSubTab) => void;
+  onSelectBundlesSubTab?: (subTab: BundlesSubTab) => void;
   onOpenEditor: () => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
@@ -265,6 +269,11 @@ const BRAND_SUB_ITEMS: { id: BrandSubTab; label: string; icon: React.ElementType
   { id: 'assets', label: 'Assets', icon: ImageIcon, desc: 'Logos & media files' },
   { id: 'contact', label: 'Contact', icon: Mail, desc: 'Public email & location' },
   { id: 'social', label: 'Social', icon: Share2, desc: 'Social channels & links' },
+];
+
+const BUNDLES_SUB_ITEMS: { id: BundlesSubTab; label: string; icon: React.ElementType; desc: string }[] = [
+  { id: 'versions', label: 'Versions', icon: Package, desc: 'Presets, exclusions & push' },
+  { id: 'repositories', label: 'Connected Repos', icon: GitBranch, desc: 'Target repos & sync diffs' },
 ];
 
 export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
