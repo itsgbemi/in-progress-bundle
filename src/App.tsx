@@ -36,9 +36,6 @@ import { loadWebsiteConfigFromFirestore } from './services/websiteConfigService'
 import { subscribeToUserPreferences, loadUserPreferencesFromFirestore, saveUserPreferences } from './services/userPreferencesService';
 import { loadBrandInfoFromFirestore } from './services/brandInfoService';
 import { getActiveWorkspaceId } from './services/workspaceService';
-import * as Y from 'yjs';
-import { FirestoreProvider } from '@gmcfall/yjs-firestore-provider';
-import { getCollaborationProvider, cleanupCollaboration } from './services/collaborationService';
 
 export default function App() {
 const { user, loading } = useAuth();
@@ -186,7 +183,6 @@ window.addEventListener('local_pages_updated', handleLocalPagesUpdated);
 return () => window.removeEventListener('local_pages_updated', handleLocalPagesUpdated);
 }, []);
 const [currentPage, setCurrentPage] = useState<WebsitePage | null>(null);
-const [collab, setCollab] = useState<{ doc: Y.Doc; provider: FirestoreProvider | null } | null>(null);
 const [history, setHistory] = useState<WebsitePage[]>([]);
 
 const [historyIndex, setHistoryIndex] = useState<number>(0);
@@ -430,24 +426,9 @@ setUiTheme((current) => (current !== nextMode ? nextMode : current));
 }
 });
 
-if (currentPage) {
-const { doc, provider } = getCollaborationProvider(currentPage.id, user.uid, activeWorkspaceId);
-setCollab({ doc, provider });
-const yPage = doc.getMap<any>('page');
-yPage.observe(() => {
-const remotePage = yPage.toJSON() as WebsitePage;
-if (remotePage) {
-setCurrentPage(remotePage);
-}
-});
-}
-
 return () => {
 unsubscribe();
 unsubPrefs();
-if (currentPage) {
-cleanupCollaboration(currentPage.id);
-}
 };
 
 }, [user?.uid, activeWorkspaceId]);

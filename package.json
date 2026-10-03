@@ -16,7 +16,6 @@
     "@fortawesome/free-brands-svg-icons": "^7.3.1",
     "@fortawesome/free-solid-svg-icons": "^7.3.1",
     "@fortawesome/react-fontawesome": "^3.5.0",
-    "@gmcfall/yjs-firestore-provider": "^1.0.0-rc.5",
     "@tailwindcss/vite": "^4.1.14",
     "@types/jszip": "^3.4.1",
     "@vitejs/plugin-react": "^5.0.4",
@@ -32,8 +31,7 @@
     "nodemailer": "^10.0.9",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "vite": "^6.2.3",
-    "yjs": "^13.6.33"
+    "vite": "^6.2.3"
   },
   "devDependencies": {
     "@types/dompurify": "^3.2.0",
